@@ -1,0 +1,144 @@
+sudo apt update && sudo apt full-upgrade -y
+
+sudo apt update
+sudo apt full-upgrade -y
+sudo rpi-eeprom-update -a
+
+sudo apt-get install python3-pip libjpeg-dev libopenblas-dev libopenmpi-dev libomp-dev
+pip install pandas scikit-learn matplotlib openpyxl
+
+#### ปิดระบบประหยัดพลังงาน / ปรับให้ CPU เต็มสปีด
+sudo apt install cpufrequtils
+echo "GOVERNOR=\"performance\"" | sudo tee /etc/default/cpufrequtils
+sudo systemctl disable ondemand
+sudo systemctl enable cpufrequtils
+sudo systemctl start cpufrequtils
+
+#### ปิด HDMI, LED, และอื่น ๆ ที่กินไฟไม่จำเป็น
+sudo nano /boot/firmware/config.txt
+
+# เพิ่มประสิทธิภาพและลดการตัดไฟ
+avoid_warnings=2
+arm_boost=1
+
+###########################
+sudo nano /etc/apt/apt.conf.d/20auto-upgrades
+# ทำให้ทุกอันเป็น 0
+
+sudo systemctl disable systemd-networkd-wait-online.service
+sudo systemctl mask systemd-networkd-wait-online.service
+
+sudo nano /boot/firmware/config.txt
+dtparam=cooling_fan=on
+dtparam=fan_temp0=5000
+dtparam=fan_temp0_speed=255
+###########################
+
+pip install opencv-python ultralytics torch onnxruntime
+
+#### แล้วแต่
+sudo apt install npm nodejs docker.io -y
+####
+
+#### ลิ้งดู
+https://island-holiday-d7f.notion.site/PRE-CAMP-TESA-Defensive-28cdb3a9f6d98038bf9fc29dd8af0ac1
+
+# setup ใช้ดูกล้อง
+sudo apt update
+sudo apt install mjpg-streamer
+
+
+### หรือ
+
+#### บน Laptop (ฝั่ง client)
+sudo apt install xauth xorg
+ssh -X user@<ip_server>
+
+#### บน Server (ฝั่งกล้อง)
+ติดตั้งโปรแกรมดูภาพ เช่น:
+
+sudo apt install cheese
+cheese
+
+### หรือใช้ Python:
+import cv2
+cap = cv2.VideoCapture(0)
+while True:
+    ret, frame = cap.read()
+    cv2.imshow('cam', frame)
+    if cv2.waitKey(1) == 27: break
+
+
+
+## ถ้า crontab -e ไม่ทำงาน
+1.ตรวจว่า cron service ทำงานอยู่ไหม
+sudo systemctl status cron
+
+2.ถ้าขึ้นว่า inactive (dead) หรือ disabled ให้เปิดใช้งานก่อน
+sudo systemctl enable cron
+sudo systemctl start cron
+
+3.จากนั้นลองใหม่
+crontab -e
+
+4. ใน Text Editor ใส่ Command ที่ต้องการให้ Execute อัตโนมัติ
+เช่น @reboot <Command ที่ต้องการให้ Execute หลังเปิดเครื่อง>
+
+###
+pip3 install setuptools numpy Cython
+pip3 install torch torchvision
+pip install torch torchvision torchaudio
+pip install Pandas Matplotlib Seaborn Scikit-learn TensorFlow Keras Flask Django opencv-python beautifulsoup4 requests
+
+
+###### tflite cpp
+
+cd ~
+sudo apt install curl unzip zip clang
+curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.18.0/bazelisk-linux-arm64"
+chmod +x bazelisk-linux-arm64
+sudo mv bazelisk-linux-arm64 /usr/local/bin/bazel
+
+bazel --version
+
+cd ~
+git clone  --depth 1 https://github.com/tensorflow/tensorflow.git
+cd tensorflow
+./configure
+bazel clean --expunge
+## ตั้งค่า
+
+cd ~/tensorflow
+
+# เคลียร์ของเก่าออกก่อน
+bazel clean --expunge
+
+# C++ API
+bazel build -c opt --config=clang_local \
+  //tensorflow/lite:libtensorflowlite.so \
+  --verbose_failures
+
+sudo cp bazel-bin/tensorflow/lite/libtensorflowlite*.so /usr/local/lib/
+sudo mkdir -p /usr/local/include/tensorflow/
+sudo cp -r tensorflow/* /usr/local/include/tensorflow/
+
+cd ~
+git clone https://github.com/google/flatbuffers.git
+cd flatbuffers
+git checkout v24.3.25
+cmake -G "Unix Makefiles"
+make -j$(nproc)
+sudo make install
+
+#########
+
+sudo apt update
+sudo apt install -y python3-pip python3-dev git cmake protobuf-compiler libprotoc-dev
+
+sudo apt update
+sudo apt install -y git cmake build-essential python3-dev python3-pip
+sudo apt-get update
+sudo apt-get install libgtest-dev
+cd /usr/src/gtest
+sudo cmake .
+sudo make
