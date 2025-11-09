@@ -1,5 +1,3 @@
-Server & Streaming Notes
-========================
 
 Use this branch to keep all server-side and streaming tweaks scoped to a single
 pull request. The snippets below were lifted from `setup.txt` and restructured
@@ -51,3 +49,4 @@ pip install pandas matplotlib seaborn scikit-learn tensorflow keras \
 
 Feel free to extend this document with deployment scripts or systemd units as
 they become part of the server PR.
+# tesa_2025
