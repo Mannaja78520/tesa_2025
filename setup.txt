@@ -3,6 +3,8 @@ sudo apt update && sudo apt full-upgrade -y
 sudo apt update
 sudo apt full-upgrade -y
 sudo rpi-eeprom-update -a
+sudo apt install avahi-daemon avahi-utils -y
+sudo systemctl enable --now avahi-daemon
 
 sudo apt-get install python3-pip libjpeg-dev libopenblas-dev libopenmpi-dev libomp-dev
 pip install pandas scikit-learn matplotlib openpyxl
@@ -53,6 +55,8 @@ sudo apt install mjpg-streamer
 #### บน Laptop (ฝั่ง client)
 sudo apt install xauth xorg
 ssh -X user@<ip_server>
+## หรือถ้าเชื่อในเน็ตว่ามีความปลอดภัยสูง และบีบอัดไฟล์ภาพที่ส่งมา
+ssh -YC user@<ip_server>
 
 #### บน Server (ฝั่งกล้อง)
 ติดตั้งโปรแกรมดูภาพ เช่น:

@@ -16,7 +16,9 @@ CONF_THRESH = 0.35                           # threshold เลือกกล�
 def load_interpreter(model_path):
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model not found: {model_path}")
-    interpreter = tflite.Interpreter(model_path=model_path)
+    interpreter = tflite.Interpreter(model_path=model_path,
+                                     num_threads=4
+                                    )
     interpreter.allocate_tensors()
     return interpreter
 
@@ -108,7 +110,7 @@ def main():
         )
 
         # FPS counter
-        frame_count += 1
+        frame_count += 1 
         now = time.time()
         if now - last_fps_time >= 1.0:
             fps = frame_count / (now - last_fps_time)
