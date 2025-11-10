@@ -1,0 +1,17 @@
+.offense-container {
+  position: fixed;
+  left: 0;
+  width: 50%;
+  height: 100vh;
+  background-color: #dc2626; /* สีแดง (คล้าย bg-red-600) */
+  color: white;
+  display: flex;
+  justify-content: center;  /* จัดให้อยู่ตรงกลางแนวนอน */
+  align-items: flex-start;   /* ชิดบนสุด */
+}
+
+.offense-container h1 {
+  margin-top: 20px;          /* ขยับลงเล็กน้อยจากขอบบน */
+  font-size: 3rem;
+  font-weight: bold;
+}
