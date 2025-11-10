@@ -89,11 +89,11 @@ crontab -e
 เช่น @reboot <Command ที่ต้องการให้ Execute หลังเปิดเครื่อง>
 
 ###
-pip3 install setuptools numpy Cython
-pip3 install torch torchvision
+pip install setuptools numpy Cython
+pip install torch torchvision
 pip install torch torchvision torchaudio
 pip install Pandas Matplotlib Seaborn Scikit-learn TensorFlow Keras Flask Django opencv-python beautifulsoup4 requests
-
+pip install aiortc aiohttp av opencv-python
 
 ###### tflite cpp
 
@@ -146,3 +146,7 @@ sudo apt-get install libgtest-dev
 cd /usr/src/gtest
 sudo cmake .
 sudo make
+
+######## GUI web base install in server and client
+sudo apt update
+sudo apt install xpra xpra-html5 -y

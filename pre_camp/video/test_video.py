@@ -5,6 +5,7 @@ import cv2
 # ถ้าอยากอ่านจากไฟล์ → ใส่ path เช่น "videos/ball.mp4"
 # source = 0  # เปลี่ยนเป็น "videos/ball.mp4" ถ้ามีไฟล์วิดีโอ
 source = "basketball_hoop.mp4"  # เปลี่ยนเป็น "videos/ball.mp4" ถ้ามีไฟล์วิดีโอ
+
 cap = cv2.VideoCapture(source)
 
 
