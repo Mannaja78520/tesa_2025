@@ -1,4 +1,4 @@
-image_name,center_x,center_y,width,height
+image_file,center_x,center_y,width,height
 test_0003.jpg,405,501,30,26
 test_0004.jpg,1044,481,32,24
 test_0005.jpg,1708,519,19,14

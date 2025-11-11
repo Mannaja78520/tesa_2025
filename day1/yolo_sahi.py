@@ -42,7 +42,7 @@ print("✅ SAHI + YOLO model ready")
 # ----- เตรียม CSV -----
 csvfile = open(CSV_PATH, "w", newline="")
 writer = csv.writer(csvfile)
-writer.writerow(["image_name", "center_x", "center_y", "width", "height"])
+writer.writerow(["image_file", "center_x", "center_y", "width", "height"])
 print(f"📁 สร้างไฟล์ CSV ใหม่: {CSV_PATH}")
 
 # ----- เลือกโหมด -----
