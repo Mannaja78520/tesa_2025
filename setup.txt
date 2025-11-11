@@ -150,3 +150,5 @@ sudo make
 ######## GUI web base install in server and client
 sudo apt update
 sudo apt install xpra xpra-html5 -y
+
+pip install sahi
