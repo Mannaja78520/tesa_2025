@@ -1,19 +1,19 @@
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
-import cv2
-import os
-import csv
+import cv2, os, csv
 
 # ---------- CONFIG ----------
-DRONE_MODEL_PATH = "drone_lastest.pt"
+MODEL_1_PATH = "drone_lastest.pt"
+MODEL_2_PATH = "drone.pt"   # <<-- โมเดลตัวที่ 2
 TEST_DIR = "P1_DATASET/TEST_DATA"
 SAVE_DIR = "P1_DATASET/TEST_RESULTS_SAHI"
-CSV_PATH = "output.csv"   # ไฟล์ CSV เก็บผลลัพธ์
+CSV_PATH = "output.csv"
 
 DRONE_CLASS_NAME = "drone"
 MAX_DRONES = 2
 
-CONF_THRESH = 0.6
+MODEL1_CONF_THRESH = 0.6
+MODEL2_CONF_THRESH = 0.35
 CONF_UNDER_LINE_THRESH = 0.71
 
 SLICE_W = 640
@@ -30,57 +30,64 @@ MAX_RATIO = 1.0
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-# ----- สร้าง SAHI detection model -----
-detection_model = AutoDetectionModel.from_pretrained(
+print("⏳ Loading model #1 ...")
+model1 = AutoDetectionModel.from_pretrained(
     model_type="ultralytics",
-    model_path=DRONE_MODEL_PATH,
-    confidence_threshold=CONF_THRESH,
+    model_path=MODEL_1_PATH,
+    confidence_threshold=MODEL1_CONF_THRESH,
     device="cpu",
 )
-print("✅ SAHI + YOLO model ready")
+print("✅ Model #1 ready")
 
-# ----- เตรียม CSV -----
+print("⏳ Loading model #2 ...")
+model2 = AutoDetectionModel.from_pretrained(
+    model_type="ultralytics",
+    model_path=MODEL_2_PATH,
+    confidence_threshold=MODEL2_CONF_THRESH,
+    device="cpu",
+)
+print("✅ Model #2 ready")
+
+# ----- CSV -----
 csvfile = open(CSV_PATH, "w", newline="")
 writer = csv.writer(csvfile)
 writer.writerow(["image_file", "center_x", "center_y", "width", "height"])
-print(f"📁 สร้างไฟล์ CSV ใหม่: {CSV_PATH}")
+print(f"📁 Created CSV: {CSV_PATH}")
 
 # ----- เลือกโหมด -----
 print("\n=== เลือกโหมดการทำงาน ===")
-print("1: เซฟผลลัพธ์ทุกภาพ + โชว์ + เลื่อนอัตโนมัติ (Save All)")
+print("1: เซฟผลลัพธ์ทุกภาพ + auto next (Save All)")
 print("2: ดูทีละภาพ ไม่เซฟ (View Only)")
 mode = input("เลือกโหมด (1/2): ").strip()
 save_all = (mode == "1")
 
-if save_all:
-    print(f"💾 โหมด 1: เซฟทุกภาพลงใน {SAVE_DIR}\n")
-else:
-    print("👁️ โหมด 2: ดูอย่างเดียว ไม่เซฟไฟล์\n")
-
-# ----- เตรียมรายการรูป -----
+# ----- รายการรูป -----
 image_files = sorted(
     f for f in os.listdir(TEST_DIR)
     if f.lower().endswith((".jpg", ".jpeg", ".png"))
 )
 
-for i, filename in enumerate(image_files, 1):
-    img_path = os.path.join(TEST_DIR, filename)
-    img = cv2.imread(img_path)
-    if img is None:
-        print(f"ข้าม {filename} (อ่านรูปไม่สำเร็จ)")
-        continue
+def iou(boxA, boxB):
+    # box = (x1, y1, x2, y2)
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    interW = max(0, xB - xA)
+    interH = max(0, yB - yA)
+    interArea = interW * interH
+    if interArea == 0:
+        return 0.0
+    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+    return interArea / float(boxAArea + boxBArea - interArea)
 
-    H, W = img.shape[:2]
-    img_area = H * W
-    ground_line = int(H * GROUND_RATIO)
-
-    # ===== 1) ขยายภาพก่อน detect =====
-    img_zoom = cv2.resize(
-        img, None, fx=ZOOM, fy=ZOOM,
-        interpolation=cv2.INTER_LINEAR
-    )
-
-    # ===== 2) SAHI + YOLO slicing inference =====
+def detect_with_model(detection_model, img_zoom, H, W, img_area, ground_line):
+    """
+    รัน SAHI + YOLO บนภาพที่ซูมแล้ว (img_zoom)
+    แล้ว map พิกัดกลับมาที่ภาพจริง (W,H)
+    คืน list: (score, x1, y1, x2, y2, cx, cy, w, h)
+    """
     result = get_sliced_prediction(
         image=img_zoom,
         detection_model=detection_model,
@@ -90,15 +97,13 @@ for i, filename in enumerate(image_files, 1):
         overlap_width_ratio=OVERLAP,
     )
 
-    drone_candidates = []
-
+    candidates = []
     for obj in result.object_prediction_list:
         class_name = obj.category.name
         score = float(obj.score.value)
         if class_name != DRONE_CLASS_NAME:
             continue
 
-        # พิกัดจากภาพซูม -> map กลับภาพจริง
         zx1, zy1, zx2, zy2 = obj.bbox.to_xyxy()
         x1 = int(zx1 / ZOOM)
         y1 = int(zy1 / ZOOM)
@@ -118,7 +123,6 @@ for i, filename in enumerate(image_files, 1):
         cx = (x1 + x2) // 2
         cy = (y1 + y2) // 2
 
-        # ---------- ฟิลเตอร์ต่าง ๆ ----------
         box_area = w * h
         if not (MIN_RATIO * img_area <= box_area <= MAX_RATIO * img_area):
             continue
@@ -134,44 +138,97 @@ for i, filename in enumerate(image_files, 1):
         if aspect2 < 0.65:
             continue
 
-        # เก็บทั้ง bbox และ center/size ไว้ใช้ทีเดียว
-        drone_candidates.append((score, x1, y1, x2, y2, cx, cy, w, h))
+        candidates.append((score, x1, y1, x2, y2, cx, cy, w, h))
 
-    # ----- จำกัดไม่เกิน 2 ลำ -----
-    drone_candidates.sort(key=lambda d: d[0], reverse=True)
-    drone_candidates = drone_candidates[:MAX_DRONES]
+    return candidates
 
-    # ----- เขียนลง CSV + วาดกรอบ -----
-    for score, x1, y1, x2, y2, cx, cy, w, h in drone_candidates:
-        # เขียนลง CSV (ไม่มี score)
+
+for i, filename in enumerate(image_files, 1):
+    img_path = os.path.join(TEST_DIR, filename)
+    img = cv2.imread(img_path)
+    if img is None:
+        print(f"❌ Skip {filename} (อ่านรูปไม่สำเร็จ)")
+        continue
+
+    H, W = img.shape[:2]
+    img_area = H * W
+    ground_line = int(H * GROUND_RATIO)
+
+    # ===== 1) ซูมภาพ =====
+    img_zoom = cv2.resize(
+        img, None, fx=ZOOM, fy=ZOOM,
+        interpolation=cv2.INTER_LINEAR
+    )
+
+    # ===== 2) ใช้ model1 ก่อน =====
+    drones1 = detect_with_model(model1, img_zoom, H, W, img_area, ground_line)
+    print(f"[{i}/{len(image_files)}] {filename} -> model1 เจอ {len(drones1)} ลำ")
+
+    drones = drones1[:]  # copy
+
+    # ===== 3) ถ้ายังเจอไม่ครบ / หรือน้อย → ให้ model2 ช่วยหาในจุดที่ยังไม่เจอ =====
+    if len(drones1) < MAX_DRONES:
+        # สร้างภาพ zoom ใหม่ แล้วทาสีดำทับบริเวณโดรนที่ model1 เจอแล้ว
+        img_zoom_masked = img_zoom.copy()
+        PAD = 10
+        for _, x1, y1, x2, y2, cx, cy, w, h in drones1:
+            x1_pad = max(0, x1 - PAD)
+            y1_pad = max(0, y1 - PAD)
+            x2_pad = min(W - 1, x2 + PAD)
+            y2_pad = min(H - 1, y2 + PAD)
+            
+            # map กลับไปเป็นพิกัดบนภาพที่ซูมแล้ว
+            zx1 = int(x1_pad * ZOOM)
+            zy1 = int(y1_pad * ZOOM)
+            zx2 = int(x2_pad * ZOOM)
+            zy2 = int(y2_pad * ZOOM)
+            cv2.rectangle(img_zoom_masked, (zx1, zy1), (zx2, zy2), (0, 0, 0), -1)
+
+        # รัน model2 บนภาพที่ mask แล้ว (จะไม่เห็นจุดที่ model1 เจอ)
+        drones2 = detect_with_model(model2, img_zoom_masked, H, W, img_area, ground_line)
+        print(f"   ➕ model2 ช่วยหาเพิ่ม: เจอ {len(drones2)} ลำ")
+
+        filtered_drones2 = []
+        for d2 in drones2:
+            _, x1_2, y1_2, x2_2, y2_2, _, _, _, _ = d2
+            box2 = (x1_2, y1_2, x2_2, y2_2)
+            max_iou = 0.0
+            for d1 in drones1:
+                _, x1_1, y1_1, x2_1, y2_1, _, _, _, _ = d1
+                box1 = (x1_1, y1_1, x2_1, y2_1)
+                max_iou = max(max_iou, iou(box1, box2))
+            if max_iou < 0.3:   # ถ้าซ้อนกันน้อยกว่า 30% ค่อยถือว่าเป็น drone ใหม่
+                filtered_drones2.append(d2)
+
+        print(f"   ✅ หลัง IoU filter: ใช้จาก model2 แค่ {len(filtered_drones2)} ลำ")
+        drones += filtered_drones2
+        # รวมผล model1 + model2
+        # drones += drones2
+
+    # ===== 4) จำกัดไม่เกิน MAX_DRONES =====
+    drones.sort(key=lambda d: d[0], reverse=True)
+    drones = drones[:MAX_DRONES]
+
+    # ===== 5) เขียน CSV + วาดกรอบ =====
+    for score, x1, y1, x2, y2, cx, cy, w, h in drones:
         writer.writerow([filename, cx, cy, w, h])
-
-        # วาดกรอบโชว์
-        label = f"{DRONE_CLASS_NAME} {score:.2f}"
         cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(img, label, (x1, y1 - 10),
+        cv2.putText(img, f"drone {score:.2f}", (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        print(f"[{i}/{len(image_files)}] {filename} -> center=({cx},{cy}), w={w}, h={h}")
+        print(f"   -> keep: center=({cx},{cy}), w={w}, h={h}")
 
-    # ----- Save / View -----
+    # ===== 6) แสดง / เซฟ =====
     if save_all:
         save_path = os.path.join(SAVE_DIR, filename)
         cv2.imwrite(save_path, img)
-        print(f"💾 Saved: {save_path}")
-
     cv2.line(img, (0, ground_line), (W - 1, ground_line), (0, 0, 255), 2)
     img_disp = cv2.resize(img, (720, 480))
     cv2.imshow("Detect_Image", img_disp)
 
-    if save_all:
-        key = cv2.waitKey(AUTO_DELAY_MS) & 0xFF
-        if key in [ord("q"), 27]:
-            break
-    else:
-        print("➡️  Space/Enter = ถัดไป, q = ออก")
-        key = cv2.waitKey(0) & 0xFF
-        if key in [ord("q"), 27]:
-            break
+    key = cv2.waitKey(AUTO_DELAY_MS if save_all else 0) & 0xFF
+    if key in [ord("q"), 27]:
+        break
 
 csvfile.close()
 cv2.destroyAllWindows()
+print(f"✅ Done. CSV saved at {CSV_PATH}")
