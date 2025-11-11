@@ -5,7 +5,7 @@ import os
 import csv
 
 # ---------- CONFIG ----------
-DRONE_MODEL_PATH = "drone.pt"
+DRONE_MODEL_PATH = "drone_lastest.pt"
 TEST_DIR = "P1_DATASET/TEST_DATA"
 SAVE_DIR = "P1_DATASET/TEST_RESULTS_SAHI"
 CSV_PATH = "output.csv"   # ไฟล์ CSV เก็บผลลัพธ์
@@ -13,13 +13,13 @@ CSV_PATH = "output.csv"   # ไฟล์ CSV เก็บผลลัพธ์
 DRONE_CLASS_NAME = "drone"
 MAX_DRONES = 2
 
-CONF_THRESH = 0.275
+CONF_THRESH = 0.6
 CONF_UNDER_LINE_THRESH = 0.71
 
-SLICE_W = 500
-SLICE_H = 500
-OVERLAP = 0.5
-ZOOM = 6.5
+SLICE_W = 640
+SLICE_H = 640
+OVERLAP = 0.35
+ZOOM = 2.0
 AUTO_DELAY_MS = 500
 
 GROUND_RATIO = 0.65
