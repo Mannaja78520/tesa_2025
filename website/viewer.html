@@ -1,63 +1,37 @@
 <!doctype html>
 <html>
   <body style="font-family:sans-serif">
-    <h2>Web Viewer</h2>
+    <h3>WS Viewer</h3>
+    <label>cam_id: <input id="cam" value="cam_01"></label>
+    <button id="joinBtn">Join</button>
 
-    <div>
-      <label>cam_id: <input id="cam" value="cam_01" /></label>
-      <button id="joinBtn">Join</button>
+    <div style="margin:10px 0;">
+      <button onclick="sendStatus('start')">Video START</button>
+      <button onclick="sendStatus('stop')">Video STOP</button>
     </div>
 
-    <div style="margin-top:12px;">
-      <button onclick="sendStatus('start')">Video: START</button>
-      <button onclick="sendStatus('stop')">Video: STOP</button>
-      <button onclick="sendStatus('pause')">Video: PAUSE</button>
-    </div>
-
-    <h3>Image</h3>
-    <img id="live" style="max-width:640px; border:1px solid #ccc"/>
-
-    <h3>Meta</h3>
-    <pre id="meta" style="width:640px; background:#f7f7f7; padding:8px;"></pre>
+    <img id="live" style="max-width:640px;border:1px solid #ccc">
+    <pre id="meta" style="width:640px;background:#f7f7f7;"></pre>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-      const WS = "http://192.168.50.242:3000"; // แก้เป็น IP server
-      const s = io(WS, { transports: ["websocket"] });
+      const WS = "http://192.168.50.242:3000";  // แก้ IP server
+      const s = io(WS, { transports:["websocket"] });
 
-      const live = document.getElementById("live");
-      const metaEl = document.getElementById("meta");
-      const camInput = document.getElementById("cam");
-      document.getElementById("joinBtn").onclick = () => {
-        s.emit("join", { role: "web", cam_id: camInput.value });
-      };
+      const cam = document.getElementById('cam');
+      document.getElementById('joinBtn').onclick = ()=> s.emit('join', {role:'web', cam_id: cam.value});
 
-      s.on("connected", () => console.log("connected"));
-      s.on("joined", (d) => console.log("joined", d));
-
-      s.on("meta", (m) => {
-        metaEl.textContent = JSON.stringify(m, null, 2);
+      s.on('connected', ()=> console.log('connected'));
+      s.on('joined', d => console.log('joined', d));
+      s.on('meta',  m => document.getElementById('meta').textContent = JSON.stringify(m, null, 2));
+      s.on('image', p => { if (p.image_b64) document.getElementById('live').src = `data:image/${p.image_format||'jpeg'};base64,${p.image_b64}`; });
+      s.on('pack',  p => {
+        document.getElementById('meta').textContent = JSON.stringify(p, null, 2);
+        if (p.image_b64) document.getElementById('live').src = `data:image/${p.image_format||'jpeg'};base64,${p.image_b64}`;
       });
 
-      s.on("image", (p) => {
-        if (p.image_b64) {
-          const fmt = p.image_format || "jpeg";
-          live.src = `data:image/${fmt};base64,${p.image_b64}`;
-        }
-      });
-
-      s.on("pack", (p) => {
-        // pack = meta + image
-        metaEl.textContent = JSON.stringify(p, null, 2);
-        if (p.image_b64) {
-          const fmt = p.image_format || "jpeg";
-          live.src = `data:image/${fmt};base64,${p.image_b64}`;
-        }
-      });
-
-      function sendStatus(status) {
-        const cam_id = camInput.value;
-        s.emit("web:video_status", { cam_id, status });
+      function sendStatus(status){
+        s.emit('web:video_status', {cam_id: cam.value, status});
       }
     </script>
   </body>
