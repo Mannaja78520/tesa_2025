@@ -1,7 +1,17 @@
-import json, paho.mqtt.client as mqtt
-def on_msg(c,u,m): print(m.topic, json.loads(m.payload))
-cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+import paho.mqtt.client as mqtt
+
+BROKER = "192.168.50.242"
+CAM_ID = "cam_01"
+TOPIC_IMG = f"od/cam/{CAM_ID}/image"
+
+def on_msg(c,u,m):
+    print("received bytes:", len(m.payload))
+    with open("recv.jpg", "wb") as f:
+        f.write(m.payload)
+    print("saved -> recv.jpg")
+
+cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="subimg")
 cli.on_message = on_msg
-cli.connect("192.168.50.242",1883) # <-- ใส่ IP คอมที่รัน mosquitto
-cli.subscribe("od/cam/#", qos=1)
+cli.connect(BROKER, 1883, 30)
+cli.subscribe(TOPIC_IMG, qos=1)
 cli.loop_forever()
