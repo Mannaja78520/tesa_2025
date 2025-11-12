@@ -15,7 +15,7 @@ cli.connect(BROKER, 1883, keepalive=30)
 
 # 2) โหลดรูป และบีบอัดเป็น JPEG -> base64
 frame = cv2.imread("img_0004.jpg")
-ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+ok, buf = cv2.imencode(".jpg", frame)
 if not ok:
     raise RuntimeError("imencode failed")
 
