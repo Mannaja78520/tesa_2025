@@ -1,109 +1,89 @@
-# server_subscriber.py
-import os, json, base64, pathlib
-from datetime import datetime
-import paho.mqtt.client as mqtt
+# pip install flask flask-cors flask-socketio eventlet
+from flask import Flask
+from flask_cors import CORS
+from flask_socketio import SocketIO, emit, join_room
+import eventlet
+eventlet.monkey_patch()
 
-BROKER = "192.168.50.242"
-BASE_DIR = "inbox"  # โฟลเดอร์ปลายทาง
+app = Flask(__name__)
+CORS(app)
+io = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
-last_meta = {}  # เก็บ meta ล่าสุดต่อ cam_id เพื่อจับคู่กับรูป
+# cam_id -> sid ของ Pi (เก็บไว้ยิงคำสั่งตรง)
+pi_sid = {}
 
-def ts_safe(s: str) -> str:
-    # ทำ timestamp ให้เป็นชื่อไฟล์ได้
-    return s.replace(":", "-").replace("/", "_").replace(" ", "_")
+@io.on("connect")
+def _on_connect():
+    emit("connected", {"ok": True})
 
-def ensure_dir(path):
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+@io.on("join")
+def _on_join(data):
+    """
+    data: {role: "pi"|"web", cam_id: "cam_01"}
+    """
+    role = data.get("role", "web")
+    cam_id = data.get("cam_id", "default")
+    join_room(cam_id)
+    if role == "pi":
+        pi_sid[cam_id] = request.sid  # จำว่า Pi ของ cam นี้ sid อะไร
+    emit("joined", {"role": role, "room": cam_id})
 
-def save_json(path, obj):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, indent=2)
+@io.on("disconnect")
+def _on_disconnect():
+    # ถ้าต้องการลบ mapping pi_sid เมื่อ pi หลุด อาจต้องไล่หาและลบ
+    pass
 
-def on_message(cli, userdata, msg):
-    topic = msg.topic  # เช่น od/cam/cam_01/pack
-    parts = topic.split("/")
-    if len(parts) < 3 or parts[0] != "od" or parts[1] != "cam":
-        print("skip", topic); return
+# ========== FROM PI ==========
+@io.on("pi:meta")
+def _pi_meta(payload):
+    """
+    payload ตัวอย่าง:
+    {
+      "cam_id": "cam_01",
+      "timestamp": "...",
+      "lat": 18.79, "lon": 98.97, "height_m": 120.3,
+      "objects": [...]
+    }
+    """
+    cam_id = payload.get("cam_id", "default")
+    io.emit("meta", payload, to=cam_id)
 
-    cam_id = parts[2]
-    kind = parts[3] if len(parts) > 3 else "meta"  # เผื่อ /od/cam/<id> เฉยๆ
-    cam_dir = os.path.join(BASE_DIR, cam_id)
-    ensure_dir(cam_dir)
+@io.on("pi:image")
+def _pi_image(payload):
+    """
+    payload ตัวอย่าง:
+    {
+      "cam_id": "cam_01",
+      "timestamp": "...",
+      "image_b64": "<...>",
+      "image_format": "jpg"
+    }
+    """
+    cam_id = payload.get("cam_id", "default")
+    io.emit("image", payload, to=cam_id)
 
-    if kind == "pack":
-        # JSON รวม (อาจมี image_b64 หรือ image_url)
-        payload = json.loads(msg.payload.decode("utf-8"))
-        ts = payload.get("timestamp") or datetime.utcnow().isoformat()
-        tss = ts_safe(ts)
+@io.on("pi:pack")
+def _pi_pack(payload):
+    """
+    รวม meta + image ใน event เดียว
+    payload: {cam_id, timestamp, ... meta fields ..., image_b64, image_format}
+    """
+    cam_id = payload.get("cam_id", "default")
+    io.emit("pack", payload, to=cam_id)
 
-        # 1) เซฟ meta (.json)
-        meta_path = os.path.join(cam_dir, f"{tss}.json")
-        save_json(meta_path, payload)
-
-        # 2) ถ้ามีรูปใน JSON (image_b64) ให้เซฟด้วย
-        img_b64 = payload.get("image_b64")
-        if img_b64:
-            img_bytes = base64.b64decode(img_b64)
-            img_ext = payload.get("image_format", "jpg")
-            img_path = os.path.join(cam_dir, f"{tss}.{img_ext}")
-            with open(img_path, "wb") as f:
-                f.write(img_bytes)
-            print(f"[{cam_id}] pack: saved {img_path} + {meta_path}")
-        else:
-            print(f"[{cam_id}] pack: saved meta only {meta_path}")
-
-        # เก็บไว้เป็น meta ล่าสุด
-        last_meta[cam_id] = payload
-
-    elif kind == "meta":
-        # JSON meta อย่างเดียว
-        payload = json.loads(msg.payload.decode("utf-8"))
-        ts = payload.get("timestamp") or datetime.utcnow().isoformat()
-        tss = ts_safe(ts)
-        meta_path = os.path.join(cam_dir, f"{tss}.json")
-        save_json(meta_path, payload)
-        last_meta[cam_id] = payload
-        print(f"[{cam_id}] meta: saved {meta_path}")
-
-    elif kind == "image":
-        # รูปอย่างเดียว (bytes)
-        ts = datetime.utcnow().isoformat()
-        tss = ts_safe(ts)
-        img_path = os.path.join(cam_dir, f"{tss}.jpg")
-        with open(img_path, "wb") as f:
-            f.write(msg.payload)
-        print(f"[{cam_id}] image: saved {img_path}")
-
-        # ถ้ามี meta ล่าสุด → เซฟ meta คู่ชื่อเดียวกัน (optional)
-        if cam_id in last_meta:
-            meta = dict(last_meta[cam_id])  # copy
-            meta["_paired_with"] = os.path.basename(img_path)
-            pair_meta_path = os.path.join(cam_dir, f"{tss}.json")
-            save_json(pair_meta_path, meta)
-            print(f"[{cam_id}] image: paired meta -> {pair_meta_path}")
-
-    else:
-        # รองรับกรณีส่งมาที่ od/cam/<id> โดยไม่มี suffix → ถือเป็น meta
-        try:
-            payload = json.loads(msg.payload.decode("utf-8"))
-        except:
-            print(f"[{cam_id}] unknown kind={kind}, raw bytes len={len(msg.payload)}")
-            return
-        ts = payload.get("timestamp") or datetime.utcnow().isoformat()
-        tss = ts_safe(ts)
-        meta_path = os.path.join(cam_dir, f"{tss}.json")
-        save_json(meta_path, payload)
-        last_meta[cam_id] = payload
-        print(f"[{cam_id}] meta(default): saved {meta_path}")
-
-def main():
-    cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="server-sub")
-    cli.on_message = on_message
-    cli.connect(BROKER, 1883, 30)
-    # ฟังทุกกล้อง ทุกชนิด
-    cli.subscribe("od/cam/+/#", qos=1)
-    print("listening on od/cam/+/# …")
-    cli.loop_forever()
+# ========== COMMANDS ==========
+@io.on("web:video_status")
+def _web_video_status(data):
+    """
+    web ส่งคำสั่งไปหา Pi ผ่าน server
+    data: {cam_id:"cam_01", status:"start"|"stop"|"pause"|...}
+    """
+    cam_id = data.get("cam_id", "default")
+    # ส่งเข้าห้อง (broadcast ถึง web ด้วย) และพยายามเจาะไปที่ Pi ถ้าเคยจำ sid ไว้
+    io.emit("server:video_status", data, to=cam_id)
+    sid = pi_sid.get(cam_id)
+    if sid:
+        io.emit("server:video_status", data, to=sid)
 
 if __name__ == "__main__":
-    main()
+    io.run(app, host="0.0.0.0", port=3000)
