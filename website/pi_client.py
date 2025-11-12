@@ -2,7 +2,7 @@
 import socketio, time, base64, cv2
 from datetime import datetime, timezone
 
-SERVER = "http://YOUR_SERVER_IP:3000"  # แก้เป็น IP server
+SERVER = "http://192.168.50.242:3000"  # แก้เป็น IP server
 CAM_ID = "cam_01"
 QUALITY = 75
 SEND_FPS = 2

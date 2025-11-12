@@ -1,5 +1,4 @@
-# pip install flask flask-cors flask-socketio eventlet
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room
 import eventlet
@@ -9,7 +8,6 @@ app = Flask(__name__)
 CORS(app)
 io = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
-# cam_id -> sid ของ Pi (เก็บไว้ยิงคำสั่งตรง)
 pi_sid = {}
 
 @io.on("connect")
@@ -18,16 +16,13 @@ def _on_connect():
 
 @io.on("join")
 def _on_join(data):
-    """
-    data: {role: "pi"|"web", cam_id: "cam_01"}
-    """
     role = data.get("role", "web")
     cam_id = data.get("cam_id", "default")
     join_room(cam_id)
     if role == "pi":
-        pi_sid[cam_id] = request.sid  # จำว่า Pi ของ cam นี้ sid อะไร
+        pi_sid[cam_id] = request.sid     # << ต้องมี from flask import request
     emit("joined", {"role": role, "room": cam_id})
-
+    
 @io.on("disconnect")
 def _on_disconnect():
     # ถ้าต้องการลบ mapping pi_sid เมื่อ pi หลุด อาจต้องไล่หาและลบ
