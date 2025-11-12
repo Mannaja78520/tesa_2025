@@ -6,7 +6,7 @@ import csv
 
 # ---------- CONFIG ----------
 DRONE_MODEL_PATH = "drone_lastest.pt"
-TEST_DIR = "P1_DATASET/TEST_DATA"
+TEST_DIR = "P2_DATA_TRAIN/TEST_DATA"
 SAVE_DIR = "P1_DATASET/TEST_RESULTS_SAHI"
 CSV_PATH = "output.csv"   # ไฟล์ CSV เก็บผลลัพธ์
 

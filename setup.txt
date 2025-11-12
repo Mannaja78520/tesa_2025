@@ -152,3 +152,5 @@ sudo apt update
 sudo apt install xpra xpra-html5 -y
 
 pip install sahi
+pip install numpy pandas xgboost scipy scikit-learn joblib
+

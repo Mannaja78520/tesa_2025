@@ -2,3 +2,5 @@
 tesa_hardware_venv/
 *.mp4
 *.jpg
+img_*.csv
+Drone_detect_dataset

@@ -1,0 +1,5 @@
+path: /home/mannaja/tesa_2025/Drone_detect_dataset
+train: images/train
+val: images/val
+names:
+- drone
