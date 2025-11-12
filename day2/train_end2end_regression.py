@@ -51,9 +51,9 @@ def make_features(u, v, w, h, W, H):
 # ---------- Load & merge ----------
 det = pd.read_csv(DETECT_CSV)
 gt  = pd.read_csv(GT_CSV).rename(columns={"Latitude":"lat","Longitude":"lon","Altitude":"alt"})
-df  = det.merge(gt, on="image_file", how="inner")
+df  = det.merge(gt, on="image_name", how="inner")
 if df.empty:
-    raise RuntimeError("No rows after merge. ตรวจสอบ image_file ให้ตรงกันระหว่าง detect_drone.csv และ GT")
+    raise RuntimeError("No rows after merge. ตรวจสอบ image_name ให้ตรงกันระหว่าง detect_drone.csv และ GT")
 
 # ---------- Build X, Y (targets in ENU) ----------
 X_list, E_list, N_list, U_list = [], [], [], []

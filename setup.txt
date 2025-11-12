@@ -154,3 +154,29 @@ sudo apt install xpra xpra-html5 -y
 pip install sahi
 pip install numpy pandas xgboost scipy scikit-learn joblib
 
+pip install flask flask-cors flask-socketio eventlet
+
+
+sudo apt-get update
+sudo apt-get install -y mosquitto mosquitto-clients
+pip install paho-mqtt opencv-python
+sudo systemctl enable --now mosquitto
+
+
+################
+sudo tee /etc/mosquitto/conf.d/lan.conf >/dev/null <<'CONF'
+# ---- TCP for Python clients ----
+listener 1883
+protocol mqtt
+allow_anonymous true      # ใช้ใน LAN ทดสอบก่อน (โปรดปิด/ทำ auth เมื่อขึ้นจริง)
+
+# ---- WebSocket for browsers ----
+listener 9001
+protocol websockets
+
+# (ถ้าจะส่ง payload ใหญ่ เช่น base64 รูป ให้ปลดลิมิต — ใช้ด้วยความระวัง)
+# message_size_limit 0     # 0 = ไม่จำกัด (เวอร์ชันใหม่), หรือปรับเป็น 5m
+CONF
+###############
+sudo systemctl restart mosquitto
+##############################3

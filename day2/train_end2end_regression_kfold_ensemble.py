@@ -82,7 +82,7 @@ def make_reg():
 # ---------- Load ----------
 det = pd.read_csv(DETECT_CSV)
 gt  = pd.read_csv(GT_CSV).rename(columns={"Latitude":"lat","Longitude":"lon","Altitude":"alt"})
-df  = det.merge(gt, on="image_file", how="inner")
+df  = det.merge(gt, on="image_name", how="inner")
 if df.empty:
     raise RuntimeError("No rows after merge. Check filenames.")
 

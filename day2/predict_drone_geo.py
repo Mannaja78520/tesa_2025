@@ -48,7 +48,7 @@ for _,r in det.iterrows():
     rdir = unit(Rcam @ b)
     E,N,U = (lam*rdir).tolist()
     lat,lon,alt = enu_to_llh(E,N,cam_lat,cam_lon,cam_alt+U+ALT_OFFSET)
-    rows.append((r.image_file,lat,lon,alt))
+    rows.append((r.image_name,lat,lon,alt))
 
 pd.DataFrame(rows, columns=["ImageName","Latitude","Longitude","Altitude"]).to_csv("predicted_positions.csv", index=False)
 print("✅ saved predicted_positions.csv")

@@ -3,10 +3,11 @@
 
 import os, numpy as np, pandas as pd, joblib
 from math import radians, cos
-
+import time
+last = time.time()
 MODEL_DIR = "models_fold_e2e"
 META_PKL  = os.path.join(MODEL_DIR, "meta.pkl")
-DETECT_CSV = "P2_DATA_TRAIN/detect_drone.csv"   # image_file,center_x,center_y,width,height
+DETECT_CSV = "P2_DATA_TRAIN/output.csv"   # image_file,center_x,center_y,width,height
 OUT_CSV    = "predicted_positions.csv"
 
 R_E = 6378137.0
@@ -84,7 +85,8 @@ for _, r in det.iterrows():
     u,v,w,h = map(float, (r.center_x, r.center_y, r.width, r.height))
     E,N,U = predict_one_row(u,v,w,h)
     lat, lon, alt = enu_to_llh(E, N, U, CAM_LAT, CAM_LON, CAM_ALT)
-    rows.append((r.image_file, lat, lon, alt))
+    rows.append((r.image_name, lat, lon, alt))
 
 pd.DataFrame(rows, columns=["ImageName","Latitude","Longitude","Altitude"]).to_csv(OUT_CSV, index=False)
 print(f"✅ saved {OUT_CSV}")
+print("Time:", time.time()-last)

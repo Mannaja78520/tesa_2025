@@ -6,7 +6,7 @@ from math import radians, cos
 
 MODEL_DIR = "models_fold"
 META_PKL  = os.path.join(MODEL_DIR, "meta.pkl")
-DETECT_CSV = "P2_DATA_TEST/detect_drone.csv"
+DETECT_CSV = "P2_DATA_TRAIN/output.csv"
 OUT_CSV    = "predicted_positions.csv"
 
 R_E = 6378137.0
